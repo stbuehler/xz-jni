@@ -573,14 +573,14 @@ static IndexedDeflateFileIndex* read_index(File file, ssize_t memlimit, std::str
 		LOG_VERBOSE("compressed_offsets[%i]: %i\n", i, (int) compressed_offsets[i]);
 	}
 
-	::inflateEnd(&strm);
+	inflateEnd(&strm);
 
 	file->finish(filestate);
 
 	return new IndexedDeflateFileIndex(block_size, full_blocks + 1, uncompressed_size, filesize, compressed_offsets);
 
 failed:
-	::inflateEnd(&strm);
+	inflateEnd(&strm);
 	if (nullptr != compressed_offsets) delete[] compressed_offsets;
 	file->finish(filestate);
 

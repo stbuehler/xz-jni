@@ -1,0 +1,43 @@
+
+A custom compression format:
+ * based on zlib [RFC 1950] / DEFLATE [RFC 1951]
+ * compresses blocks (same uncompressed block size for the complete file) for faster random access
+ * stores length of compressed blocks ("index") at end of archive
+
+Details:
+--------
+
+All uint32 are stored big-endian = network byte order.
+
+- 8 byte header: "idxdefl\0"
+- compressed blocks
+- compressed index
+- footer:
+  - uint32 index_size
+  - uint32 block_size
+  - uint32 full_blocks
+  - uint32 last_block
+  all 4 can be assumed to be less than 2^31.
+  the uncompressed filesize can be calulcated from (full_blocks * block_size + last_block).
+  the last_block cannot be larger than block_size.
+  index_size is the size (in bytes) of the compressed index.
+  although the last block could be empty, it must be represented by a compressed block.
+
+No padding allowed.
+
+Uncompressed index:
+-------------------
+
+The index consists of the compressed lengths (in bytes) of the first full_blocks blocks; the compressed length of the last
+block is what fits between the other blocks and the index.
+The lengths are stored as uint32.
+
+Compression:
+------------
+
+All data is compressed using DEFLATE (RFC 1951) with zlib header [RFC 1950].
+
+Using zlib,
+	deflateInit2(&strm, 7, Z_DEFLATED, 15, 8, Z_DEFAULT_STRATEGY);
+is a correct way to initialize compression (with compression level 7).
+Decompression is even easier: inflateInit2(&strm, 0);

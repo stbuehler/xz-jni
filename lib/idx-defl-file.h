@@ -9,6 +9,7 @@ extern "C" {
 
 class IndexedDeflateFileIndex;
 
+/** abstraction for custom file compression format. see doc/indexed-deflate-format.txt */
 class IndexedDeflateFile : public IFile {
 private:
 	IndexedDeflateFile();

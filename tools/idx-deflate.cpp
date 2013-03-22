@@ -1,5 +1,5 @@
 
-#include "file.h"
+#include "../lib/file.h"
 
 #include <iostream>
 #include <fstream>

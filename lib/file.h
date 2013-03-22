@@ -1,8 +1,6 @@
 #ifndef __MY_FILE_H
 #define __MY_FILE_H __MY_FILE_H
 
-#define _FILE_OFFSET_BITS 64
-
 #include <cassert>
 #include <cstdint>
 
@@ -10,6 +8,13 @@
 #include <memory>
 #include <string>
 
+/**
+ * each IFile implementation can allocate a state object;
+ * a state is supposed to help with sequential access,
+ * and also is used to hold the returned buffer
+ * each state must be "finish"ed with the file it was used,
+ * and cannot be reused with other files (even from the same class)
+ */
 class FileReaderState {
 protected:
 	virtual ~FileReaderState() { }
@@ -18,6 +23,9 @@ protected:
 	FileReaderState& operator=(const FileReaderState &);
 };
 
+/**
+ * random access file abstraction
+ */
 class IFile {
 protected:
 	IFile() { }
@@ -29,13 +37,43 @@ public:
 
 	/* these should be thread safe (assuming each thread has its own state) */
 	virtual int64_t filesize() = 0;
+	/**
+	 * read up to length bytes from given file offset, storing a pointer to the data in data
+	 * and storing the amount of actuall read bytes in datasize
+	 *
+	 * returns true on successful read and false otherwise; on error an error message is stored in error.
+	 * the requested range offset/length should be valid for the file; the method may still succeed by returning less data,
+	 * but it also might return an error
+	 *
+	 * in any case you have to release the internalState later with finish(); but you can reuse the same state with
+	 * the same file in other reads before finish()ing it.
+	 * initialize the internalState pointer to nullptr before the first call!
+	 */
 	virtual bool read(FileReaderState* &internalState, int64_t offset, ssize_t length, const unsigned char* &data /* out */, ssize_t &datasize /* out */, std::string &error /* out */) = 0;
+	/**
+	 * same as read, but reads into the already allocated storage at data (which has to be large enough for length bytes)
+	 * also reads exactly length bytes - or throws an error.
+	 */
 	virtual bool readInto(FileReaderState* &internalState, int64_t offset, ssize_t length, unsigned char* data, std::string &error /* out */) = 0;
+	/**
+	 * free the internalState. does nothing if internalState is nullptr, and resets internalState to nullptr.
+	 */
 	virtual void finish(FileReaderState* &internalState) = 0;
 };
 
 typedef std::shared_ptr<IFile> File;
 
+/**
+ * helper for the FileReaderState/IFile handling
+ *
+ * provides sequential access to a part (offset+length) of the file,
+ * which can be reset to another part at any time (defaults to the complete file).
+ *
+ * keeps the file open with a reference, and ensures the state is finished
+ * correctly.
+ *
+ * not thread safe - use different FileReaders in different threads (same file is ok).
+ */
 class FileReader {
 private:
 	File m_file;
@@ -97,6 +135,7 @@ public:
 		m_state = nullptr;
 	}
 
+	/* reset selected range to [offset, end of file] */
 	void seek(int64_t offset) {
 		seek(offset, -1);
 	}
@@ -114,6 +153,9 @@ public:
 
 	std::string lastError() { return m_lastError; }
 
+	/**
+	 * read up to maxBufSize bytes. eof() is signaled by returning zero datasize
+	 */
 	bool read(ssize_t maxBufSize, const unsigned char* &data /* out */, ssize_t &datasize /* out */) {
 		assert(maxBufSize > 0);
 
@@ -138,6 +180,9 @@ public:
 		return true;
 	}
 
+	/**
+	 * read exactly datasize bytes into data
+	 */
 	bool readInto(unsigned char* data, ssize_t datasize) {
 		assert(datasize >= 0);
 
@@ -156,6 +201,8 @@ public:
 	}
 };
 
+
+/* OS provided file, using pread() */
 class NormalFile : public IFile {
 private:
 	NormalFile();
@@ -170,14 +217,16 @@ public:
 	NormalFile(const char *filename, std::string &error /* out */);
 	virtual ~NormalFile();
 
-	bool valid();
+	bool valid(); /** whether open() in the constructor succeeded */
 
 	virtual int64_t filesize();
 	virtual bool read(FileReaderState* &internalState, int64_t offset, ssize_t length, const unsigned char* &data /* out */, ssize_t &datasize /* out */, std::string &error /* out */);
+	/** special case: does not use the state */
 	virtual bool readInto(FileReaderState* &internalState, int64_t offset, ssize_t length, unsigned char* data, std::string &error /* out */);
 	virtual void finish(FileReaderState* &internalState);
 };
 
+/* uses mmap() instead of pread() */
 class MMappedFile : public NormalFile {
 private:
 	MMappedFile();
@@ -185,13 +234,15 @@ private:
 	MMappedFile& operator=(const MMappedFile &);
 
 protected:
-	int m_pagesize;
+	int m_pagesize; /** cache sysconf(_SC_PAGE_SIZE) */
 
 public:
 	MMappedFile(const char *filename, std::string &error /* out */);
 
+	/** always mmap()s the complete requested range */
 	virtual bool read(FileReaderState* &internalState, int64_t offset, ssize_t length, const unsigned char* &data /* out */, ssize_t &datasize /* out */, std::string &error /* out */);
 	virtual void finish(FileReaderState* &internalState);
+	/** readInto with mmap() doesn't make sense, so just use NormalFile::readInto; NormalFile::readInto does not use state, so the mmap state doesn't conflict with it */
 };
 
 #endif

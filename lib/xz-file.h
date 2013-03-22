@@ -7,6 +7,11 @@ extern "C" {
 #include <lzma.h>
 }
 
+/**
+ * read xz/lzma files. they should be compressed with a sane block size,
+ * otherwise random access will be terribly slow.
+ * (use xz --block-size=64K or similar)
+ */
 class XZFile : public IFile {
 private:
 	XZFile();

@@ -1,5 +1,5 @@
 
-#include "xz-file.h"
+#include "../lib/xz-file.h"
 
 #include <iostream>
 #include <fstream>

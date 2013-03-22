@@ -7,12 +7,24 @@ This library only reads big endian integer arrays, but it should be easy to modi
 
 Keep in mind: random access needs small block sizes, or it will be really slow.
 
+
+(This library also supports a custom compression format, see doc/indexed-deflate-format.txt)
+
 License
 -------
 
 xz-jni is in the public domain.
 
 As usual, this software is provided "as is", without any warranty.
+
+Dependencies
+------------
+
+ * C++11
+ * zlib
+ * liblzma-dev
+ * JNI
+ * cmake/ant environment
 
 Building
 --------

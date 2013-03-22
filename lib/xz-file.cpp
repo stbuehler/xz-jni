@@ -71,10 +71,17 @@ static void errnoLzmaToStr(const char *prefix, lzma_ret res, std::string &error)
 
 class XZFileReaderState : public FileReaderState {
 public:
+	int64_t position; /* uncompressed offset of currentBuffer[0] (NOT strm->next_out!) */
+
+	/* if position >= 0 the folling data is "active" */
+	/* decoder for current block */
 	lzma_stream strm;
+	/* current block (checksums, flags, filters, ...) */
 	lzma_block block;
+	/* block needs a reference to this list of filters (why on earth do you have to setup this manually? -.-)
+	 * also these filters have pointers that needs to be free()d with clearFilters() */
 	lzma_filter filters[LZMA_FILTERS_MAX + 1];
-	int64_t position; /* uncompressed offset of outputBuffer[0] (NOT strm->next_out!) */
+	/* current block offset and size (uncompressed, compressed) */
 	lzma_index_iter iter;
 
 	unsigned char *currentBuffer;
@@ -112,7 +119,10 @@ public:
 
 	void selectDefaultBuffer() {
 		LOG_VERBOSE("selectDefaultBuffer\n");
-		if (defaultOutputBuffer != currentBuffer) selectBuffer(defaultOutputBuffer, sizeof(defaultOutputBuffer));
+		/* selectBuffer flushes the current buffer, so only call it when necesary */
+		if (defaultOutputBuffer != currentBuffer || sizeof(defaultOutputBuffer) != currentBufferSize) {
+			selectBuffer(defaultOutputBuffer, sizeof(defaultOutputBuffer));
+		}
 	}
 
 	void selectBuffer(unsigned char *buf, size_t size) {
@@ -130,6 +140,7 @@ public:
 		lzma_end(&strm);
 	}
 
+	/* available output bytes in currentBuffer (== strm.next_out - availableBytes()) */
 	size_t availableBytes() {
 		return currentBufferSize - strm.avail_out;
 	}
@@ -314,7 +325,7 @@ XZFile::XZFile(File file, std::string &error /* out */)
 
 XZFile::~XZFile() {
 	if (nullptr != m_index) {
-		::lzma_index_end(m_index, NULL);
+		lzma_index_end(m_index, NULL);
 		m_index = nullptr;
 	}
 }
@@ -324,7 +335,7 @@ bool XZFile::valid() {
 }
 
 int64_t XZFile::filesize() {
-	return (nullptr != m_index) ? ::lzma_index_uncompressed_size(m_index) : 0;
+	return (nullptr != m_index) ? lzma_index_uncompressed_size(m_index) : 0;
 }
 
 bool XZFile::read(FileReaderState* &internalState, int64_t offset, ssize_t length, const unsigned char* &data /* out */, ssize_t &datasize /* out */, std::string &error /* out */) {
@@ -417,7 +428,7 @@ void XZFile::finish(FileReaderState* &internalState) {
 	}
 }
 
-
+/* adapted from official xz source: xz/src/xz/list.c */
 static lzma_index* read_index(File file, uint64_t memlimit, std::string &error) {
 	union {
 		unsigned char buf[4096];
@@ -464,6 +475,7 @@ static lzma_index* read_index(File file, uint64_t memlimit, std::string &error) 
 
 			if (!file->readInto(filestate, pos, LZMA_STREAM_HEADER_SIZE, buf.buf, error)) goto failed;
 
+			/* padding must be a multiple of 4 */
 			if (buf.u32[2] != 0) break;
 			pos -= 4; stream_padding += 4;
 			if (buf.u32[1] != 0) break;
@@ -591,15 +603,15 @@ static lzma_index* read_index(File file, uint64_t memlimit, std::string &error) 
 		cur_index = nullptr;
 	} while (pos > 0);
 
-	::lzma_end(&strm);
+	lzma_end(&strm);
 	file->finish(filestate);
 
 	return col_index;
 
 failed:
-	::lzma_end(&strm);
-	if (nullptr != cur_index) ::lzma_index_end(cur_index, NULL);
-	if (nullptr != col_index) ::lzma_index_end(col_index, NULL);
+	lzma_end(&strm);
+	if (nullptr != cur_index) lzma_index_end(cur_index, NULL);
+	if (nullptr != col_index) lzma_index_end(col_index, NULL);
 	file->finish(filestate);
 
 	return nullptr;
