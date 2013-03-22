@@ -26,6 +26,8 @@
 # define LOG_VERBOSE(...) do { } while(0)
 #endif
 
+#pragma GCC visibility push(default)
+
 /*
  * Class:     de_unistuttgart_informatik_OfflineToureNPlaner_xz_XZInputStream
  * Method:    openFile

@@ -17,13 +17,18 @@ MACRO(ADD_TARGET_PROPERTIES _target _name)
 	SET_TARGET_PROPERTIES(${_target} PROPERTIES ${_name} "${_old_properties} ${_properties}")
 ENDMACRO(ADD_TARGET_PROPERTIES)
 
+if(NOT CMAKE_BUILD_TYPE)
+	SET(CMAKE_BUILD_TYPE "RelWithDebInfo" CACHE STRING "Choose the type of build, options are: None(CMAKE_CXX_FLAGS or CMAKE_C_FLAGS used) Debug Release RelWithDebInfo MinSizeRel." FORCE)
+endif(NOT CMAKE_BUILD_TYPE)
+
+
 # can be disabled in the cache
-set(WARN_LDFLAGS "-Wall -Wl,--as-needed -Wl,--no-undefined" CACHE STRING "standard ld warnings")
+set(WARN_LDFLAGS "-Wall -Wl,--as-needed -Wl,--no-undefined -fvisibility=hidden" CACHE STRING "standard ld warnings")
 set(WARN_C_FLAGS "-Wall -Wmissing-declarations -Wcast-align -Wsign-compare -Wpointer-arith -Wdeclaration-after-statement -Wnested-externs" CACHE STRING "standard c warnings")
 set(WARN_CXX_FLAGS "-Wall -Wmissing-declarations -Wcast-align -Wsign-compare -Wpointer-arith" CACHE STRING "standard c++ warnings")
 
 # set these always
-set(OTHER_CFLAGS "-D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -D_LARGE_FILES")
+set(OTHER_CFLAGS "-D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -D_LARGE_FILES -fvisibility=hidden")
 
 # apply configured flags
 set(CMAKE_CXX_FLAGS "-fPIC -std=c++11 ${CMAKE_CXX_FLAGS} ${WARN_CXX_FLAGS} ${OTHER_CFLAGS}")
