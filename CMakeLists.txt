@@ -64,7 +64,7 @@ add_library(xz-jni SHARED
 	lib/de_unistuttgart_informatik_OfflineToureNPlaner_xz_XZInputStream.cpp
 	$<TARGET_OBJECTS:common>
 )
-target_link_libraries(xz-jni ${COMMON_LIBS})
+target_link_libraries(xz-jni ${COMMON_LIBS} "-Wl,--version-script=${CMAKE_SOURCE_DIR}/lib/libxz-jni.map")
 
 if(NOT ANDROID)
 	add_executable(idx-deflate tools/idx-deflate.cpp $<TARGET_OBJECTS:common>)

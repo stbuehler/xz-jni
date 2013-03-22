@@ -1,0 +1,7 @@
+{
+	global:
+		Java_de_unistuttgart_informatik_OfflineToureNPlaner_xz_XZInputStream_closeFile;
+		Java_de_unistuttgart_informatik_OfflineToureNPlaner_xz_XZInputStream_openFile;
+		Java_de_unistuttgart_informatik_OfflineToureNPlaner_xz_XZInputStream_readInt;
+	local: *;
+};
