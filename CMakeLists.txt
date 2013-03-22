@@ -26,8 +26,8 @@ set(WARN_CXX_FLAGS "-Wall -Wmissing-declarations -Wcast-align -Wsign-compare -Wp
 set(OTHER_CFLAGS "-D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -D_LARGE_FILES")
 
 # apply configured flags
-set(CMAKE_CXX_FLAGS "-std=c++11 ${CMAKE_CXX_FLAGS} ${WARN_CXX_FLAGS} ${OTHER_CFLAGS}")
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${WARN_C_FLAGS} ${OTHER_CFLAGS}")
+set(CMAKE_CXX_FLAGS "-fPIC -std=c++11 ${CMAKE_CXX_FLAGS} ${WARN_CXX_FLAGS} ${OTHER_CFLAGS}")
+set(CMAKE_C_FLAGS "-fPIC ${CMAKE_C_FLAGS} ${WARN_C_FLAGS} ${OTHER_CFLAGS}")
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${WARN_LDFLAGS}")
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${WARN_LDFLAGS}")
 
@@ -40,7 +40,7 @@ endif(NOT XZ_INCLUDE_DIR OR NOT XZ_LIB)
 
 include_directories(${XZ_INCLUDE_DIR})
 
-set(COMMON_LIBS "")
+set(COMMON_LIBS ${XZ_LIB} z)
 
 if(ANDROID)
 	set(COMMON_LIBS ${COMMON_LIBS} log)
@@ -49,23 +49,25 @@ else(ANDROID)
 	include_directories(${INCLUDE_DIRECTORIES} ${JNI_INCLUDE_DIRS})
 endif(ANDROID)
 
-set(XZJNI_SOURCES
+add_library(common OBJECT
 	lib/file.cpp
 	lib/xz-file.cpp
 	lib/idx-defl-file.cpp
-	lib/de_unistuttgart_informatik_OfflineToureNPlaner_xz_XZInputStream.cpp
 )
 
-add_library(xz-jni SHARED ${XZJNI_SOURCES})
-target_link_libraries(xz-jni ${COMMON_LIBS} ${XZ_LIB} z)
+add_library(xz-jni SHARED
+	lib/de_unistuttgart_informatik_OfflineToureNPlaner_xz_XZInputStream.cpp
+	$<TARGET_OBJECTS:common>
+)
+target_link_libraries(xz-jni ${COMMON_LIBS})
 
 if(NOT ANDROID)
-	add_executable(idx-deflate tools/idx-deflate.cpp lib/file.cpp)
+	add_executable(idx-deflate tools/idx-deflate.cpp $<TARGET_OBJECTS:common>)
 	target_link_libraries(idx-deflate ${COMMON_LIBS} z)
 
-	add_executable(idx-inflate tools/idx-inflate.cpp lib/file.cpp lib/idx-defl-file.cpp)
+	add_executable(idx-inflate tools/idx-inflate.cpp $<TARGET_OBJECTS:common>)
 	target_link_libraries(idx-inflate ${COMMON_LIBS} z)
 
-	add_executable(xz-inflate tools/xz-inflate.cpp lib/file.cpp lib/xz-file.cpp)
+	add_executable(xz-inflate tools/xz-inflate.cpp $<TARGET_OBJECTS:common>)
 	target_link_libraries(xz-inflate ${COMMON_LIBS} ${XZ_LIB})
 endif(NOT ANDROID)
