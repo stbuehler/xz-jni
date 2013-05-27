@@ -78,7 +78,7 @@ public:
 
 	~IndexedDeflateFileIndex() {
 		if (nullptr != offsets) {
-			delete offsets;
+			delete[] offsets;
 			offsets = nullptr;
 		}
 	}
